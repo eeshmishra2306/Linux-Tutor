@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Question } from '../types';
-import { INITIAL_MCQS } from '../constants';
+import { INITIAL_MCQS, SYLLABUS } from '../constants';
 import { generateMoreQuestions } from '../services/geminiService';
 
 const QuizView: React.FC = () => {
@@ -11,6 +11,10 @@ const QuizView: React.FC = () => {
   const [showResult, setShowResult] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [quizCompleted, setQuizCompleted] = useState(false);
+  
+  // Custom Quiz State
+  const [selectedTopic, setSelectedTopic] = useState<string>('');
+  const [showConfigModal, setShowConfigModal] = useState(false);
 
   const currentQuestion = questions[currentIndex];
 
@@ -35,7 +39,7 @@ const QuizView: React.FC = () => {
 
   const loadMoreQuestions = async () => {
     setIsGenerating(true);
-    const newQs = await generateMoreQuestions(10);
+    const newQs = await generateMoreQuestions(10, selectedTopic || undefined);
     // Add unique IDs
     const startId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
     const processedQs = newQs.map((q, i) => ({...q, id: startId + i}));
@@ -50,6 +54,83 @@ const QuizView: React.FC = () => {
     setSelectedOption(null);
     setShowResult(false);
   };
+
+  const startNewQuiz = async () => {
+    setIsGenerating(true);
+    const newQs = await generateMoreQuestions(10, selectedTopic || undefined);
+    const processedQs = newQs.map((q, i) => ({...q, id: i + 1}));
+    
+    setQuestions(processedQs);
+    setScore(0);
+    setCurrentIndex(0);
+    setSelectedOption(null);
+    setShowResult(false);
+    setQuizCompleted(false);
+    setIsGenerating(false);
+    setShowConfigModal(false);
+  };
+
+  const TopicSelector = () => (
+    <div className="space-y-2 text-left">
+      <label className="block text-sm font-medium text-slate-400">Select Topic</label>
+      <select 
+        value={selectedTopic}
+        onChange={(e) => setSelectedTopic(e.target.value)}
+        className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+      >
+        <option value="">All Topics (General)</option>
+        {SYLLABUS.map((exp) => (
+          <option key={exp.experiment} value={exp.title}>
+            Exp {exp.experiment}: {exp.title}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  // Configuration Modal
+  if (showConfigModal) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+        <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-md p-6 shadow-2xl">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold text-white">Create Custom Quiz</h3>
+            <button onClick={() => setShowConfigModal(false)} className="text-slate-400 hover:text-white">
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+          
+          <div className="space-y-6">
+            <TopicSelector />
+            
+            <div className="bg-blue-900/20 border border-blue-500/20 rounded-lg p-4">
+              <p className="text-sm text-blue-300">
+                <i className="fas fa-info-circle mr-2"></i>
+                This will generate 10 fresh AI questions based on your selection.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowConfigModal(false)}
+                className="flex-1 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={startNewQuiz}
+                disabled={isGenerating}
+                className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                {isGenerating ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-play"></i>}
+                Start Quiz
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (quizCompleted) {
     return (
@@ -66,41 +147,66 @@ const QuizView: React.FC = () => {
             ></div>
           </div>
 
-          <div className="flex gap-4 justify-center">
-            <button 
-              onClick={() => {
-                setScore(0);
-                setCurrentIndex(0);
-                setQuizCompleted(false);
-                setSelectedOption(null);
-                setShowResult(false);
-              }}
-              className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors"
-            >
-              Restart
-            </button>
-            <button 
-              onClick={loadMoreQuestions}
-              disabled={isGenerating}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium text-white transition-colors flex items-center gap-2"
-            >
-              {isGenerating ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-plus"></i>}
-              Generate 10 More (AI)
-            </button>
+          <div className="space-y-4">
+             <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
+                <h4 className="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider">Continue Practice</h4>
+                <TopicSelector />
+             </div>
+
+             <div className="flex gap-4 justify-center">
+              <button 
+                onClick={() => {
+                  setScore(0);
+                  setCurrentIndex(0);
+                  setQuizCompleted(false);
+                  setSelectedOption(null);
+                  setShowResult(false);
+                }}
+                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors"
+              >
+                Restart Current
+              </button>
+              <button 
+                onClick={loadMoreQuestions}
+                disabled={isGenerating}
+                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-lg font-medium text-white transition-colors flex items-center gap-2"
+              >
+                {isGenerating ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-plus"></i>}
+                Generate 10 More
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  if (questions.length === 0) return <div>Loading...</div>;
+  if (questions.length === 0) return (
+      <div className="flex items-center justify-center h-full text-slate-400 gap-3">
+          <i className="fas fa-spinner fa-spin text-2xl"></i>
+          <span>Loading Questions...</span>
+      </div>
+  );
 
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">MCQ Practice</h2>
-        <div className="bg-slate-800 px-4 py-2 rounded-full text-sm font-mono border border-slate-700">
-          Q: {currentIndex + 1} / {questions.length} | Score: {score}
+        <div>
+            <h2 className="text-2xl font-bold">MCQ Practice</h2>
+            <p className="text-xs text-slate-400 mt-1">
+                {selectedTopic ? `Topic: ${selectedTopic}` : 'Topic: General / Mixed'}
+            </p>
+        </div>
+        <div className="flex items-center gap-3">
+            <button 
+                onClick={() => setShowConfigModal(true)}
+                className="bg-slate-800 hover:bg-slate-700 text-blue-400 px-3 py-1.5 rounded-lg border border-slate-700 text-sm font-medium transition-colors"
+            >
+                <i className="fas fa-sliders-h mr-2"></i>New Quiz
+            </button>
+            <div className="bg-slate-800 px-4 py-2 rounded-full text-sm font-mono border border-slate-700">
+            Q: {currentIndex + 1} / {questions.length} | Score: {score}
+            </div>
         </div>
       </div>
 

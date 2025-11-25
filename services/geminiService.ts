@@ -1,8 +1,8 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { AI_SYSTEM_INSTRUCTION, SYLLABUS } from '../constants';
-import { Question, VivaQuestion } from '../types';
+import { Question, VivaQuestion, ChatMessage } from '../types';
 
-const apiKey = process.env.API_KEY || ''; // In a real app, ensure this is handled securely
+const apiKey = process.env.API_KEY || '';
 
 const ai = new GoogleGenAI({ apiKey: apiKey });
 
@@ -109,7 +109,7 @@ export const chatWithTutor = async (history: {role: string, parts: {text: string
         });
 
         const result = await chat.sendMessage({ message });
-        return result.text;
+        return result.text || "I couldn't generate a response.";
     } catch (e) {
         console.error(e);
         return "Sorry, I encountered an error communicating with the AI Tutor.";
