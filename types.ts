@@ -3,6 +3,7 @@ export interface SyllabusItem {
   title: string;
   theory: string;
   labTasks: string[];
+  details: string; // Added for the full rich text notes provided
 }
 
 export interface Question {
